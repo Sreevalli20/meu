@@ -184,7 +184,6 @@ export const CandidateCard: React.FC<CandidateCardProps> = ({
             ) : (
               <span className="text-xs text-slate-500 font-mono">No reviews yet</span>
             )}
-            </div>
           </div>
 
           {onOpenReviewModal && (
