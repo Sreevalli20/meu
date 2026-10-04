@@ -1,13 +1,15 @@
 import React, { useState, useRef } from 'react';
-import { UploadCloud, Camera, Sparkles, RefreshCw, X, CheckCircle2, Sliders, Wand2 } from 'lucide-react';
-import { ImageAdjustment } from '../types/trace';
+import { UploadCloud, Camera, Sparkles, RefreshCw, X, CheckCircle2, Sliders, Wand2, MapPin, Navigation, Search, Loader2, AlertCircle } from 'lucide-react';
+import { ImageAdjustment, SearchLocation, LocationState } from '../types/trace';
 import { ImageAdjustmentStudio } from './ImageAdjustmentStudio';
+import { geocodeLocation } from '../services/api';
 
 interface GadgetUploaderProps {
   onTrace: (payload: {
     imageBase64?: string;
     mimeType?: string;
     filenameHint?: string;
+    location?: SearchLocation;
   }) => void;
   isTracing: boolean;
 }
@@ -20,6 +22,15 @@ export const GadgetUploader: React.FC<GadgetUploaderProps> = ({ onTrace, isTraci
   const [showCamera, setShowCamera] = useState(false);
   const [showAdjustmentStudio, setShowAdjustmentStudio] = useState(false);
   const [isEnhanced, setIsEnhanced] = useState(false);
+
+  // Location state
+  const [location, setLocation] = useState<SearchLocation | null>(null);
+  const [locationState, setLocationState] = useState<LocationState>('idle');
+  const [locationError, setLocationError] = useState<string | null>(null);
+  const [isGeocoding, setIsGeocoding] = useState(false);
+  const [locationQuery, setLocationQuery] = useState('');
+  const [locationSuggestions, setLocationSuggestions] = useState<any[]>([]);
+  const [showLocationSuggestions, setShowLocationSuggestions] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -106,14 +117,174 @@ export const GadgetUploader: React.FC<GadgetUploaderProps> = ({ onTrace, isTraci
     setShowAdjustmentStudio(false);
   };
 
-  const handleStartTrace = () => {
-    if (selectedImage) {
-      onTrace({
-        imageBase64: selectedImage,
-        mimeType: selectedMimeType,
-        filenameHint: isEnhanced ? `enhanced_${filenameHint}` : filenameHint,
+  // Reverse geocode GPS coordinates to get address
+  const reverseGeocode = async (lat: number, lon: number): Promise<string> => {
+    try {
+      const url = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&zoom=18&addressdetails=1`;
+      const res = await fetch(url, {
+        headers: { 'User-Agent': 'PANI-PATH/1.0' },
       });
+      if (res.ok) {
+        const data = await res.json();
+        const addr = data.display_name;
+        const parts = addr.split(',').slice(0, 3).join(',');
+        return parts || `GPS (${lat.toFixed(4)}, ${lon.toFixed(4)})`;
+      }
+    } catch (err) {
+      console.warn('[GPS] Reverse geocoding failed:', err);
     }
+    return `GPS (${lat.toFixed(4)}, ${lon.toFixed(4)})`;
+  };
+
+  const handleGetCurrentLocation = () => {
+    console.log('[GPS BUTTON CLICK] User clicked Locate Me button');
+
+    if (!navigator.geolocation) {
+      console.error('[GPS ERROR] navigator.geolocation not supported');
+      setLocationState('gps_unavailable');
+      setLocationError('Geolocation is not supported by your browser. Please search manually.');
+      return;
+    }
+
+    console.log('[GPS REQUEST STARTED] Calling navigator.geolocation.getCurrentPosition');
+    setLocationState('requesting_gps');
+    setLocationError(null);
+    setIsGeocoding(true);
+
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        const lat = pos.coords.latitude;
+        const lon = pos.coords.longitude;
+
+        console.log('[GPS SUCCESS] Coordinates obtained:', { lat, lon });
+
+        // Reverse geocode to get address
+        const displayName = await reverseGeocode(lat, lon);
+
+        setLocationState('gps_success');
+        setIsGeocoding(false);
+
+        const newLocation: SearchLocation = {
+          lat,
+          lon,
+          displayName,
+          source: 'browser_gps',
+        };
+        setLocation(newLocation);
+
+        console.log('[GPS LOCATION STATE UPDATED] Location set:', { lat, lon, displayName, source: 'browser_gps' });
+      },
+      (err) => {
+        setIsGeocoding(false);
+        console.error('[GPS ERROR]', err);
+
+        if (err.code === 1) {
+          // PERMISSION_DENIED
+          setLocationState('permission_denied');
+          setLocationError('Browser location permission was denied. Please search manually using the address search box.');
+        } else if (err.code === 2) {
+          // POSITION_UNAVAILABLE
+          setLocationState('gps_unavailable');
+          setLocationError('Location is unavailable. Please search manually.');
+        } else if (err.code === 3) {
+          // TIMEOUT
+          setLocationState('gps_unavailable');
+          setLocationError('Location request timed out. Please search manually.');
+        } else {
+          setLocationState('error');
+          setLocationError(`Location error: ${err.message}. Please search manually.`);
+        }
+      },
+      {
+        timeout: 15000,
+        enableHighAccuracy: true,
+        maximumAge: 0, // Force fresh GPS reading
+      }
+    );
+  };
+
+  const handleSearchLocation = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!locationQuery.trim()) return;
+
+    console.log('[MANUAL LOCATION SEARCH] Querying:', locationQuery);
+    setLocationState('manual_search');
+    setLocationError(null);
+    setIsGeocoding(true);
+
+    try {
+      const results = await geocodeLocation(locationQuery);
+      console.log('[MANUAL LOCATION SEARCH] Results:', results.length);
+
+      setLocationSuggestions(results);
+      setShowLocationSuggestions(true);
+
+      if (results.length > 0) {
+        const top = results[0];
+        const lat = parseFloat(top.lat);
+        const lon = parseFloat(top.lon);
+        const displayName = top.display_name.split(',').slice(0, 2).join(',');
+
+        console.log('[MANUAL LOCATION SUCCESS] Geocoded:', { lat, lon, displayName });
+
+        setLocationState('manual_success');
+        const newLocation: SearchLocation = {
+          lat,
+          lon,
+          displayName,
+          source: 'manual_search',
+        };
+        setLocation(newLocation);
+        setLocationQuery(displayName);
+      } else {
+        setLocationState('error');
+        setLocationError('No results found for that address. Try a different search term.');
+      }
+    } catch (err) {
+      console.error('[MANUAL LOCATION ERROR]', err);
+      setLocationState('error');
+      setLocationError('Geocoding service temporarily unavailable. Please try again.');
+    } finally {
+      setIsGeocoding(false);
+    }
+  };
+
+  const selectLocationSuggestion = (item: any) => {
+    const newLocation: SearchLocation = {
+      lat: parseFloat(item.lat),
+      lon: parseFloat(item.lon),
+      displayName: item.display_name.split(',').slice(0, 2).join(','),
+      source: 'manual_search',
+    };
+    setLocation(newLocation);
+    setLocationQuery(item.display_name.split(',').slice(0, 2).join(','));
+    setShowLocationSuggestions(false);
+  };
+
+  const handleStartTrace = () => {
+    if (!selectedImage) {
+      alert('Please upload a food image first.');
+      return;
+    }
+
+    if (!location) {
+      alert('Location is required. Please click "Locate Me" or search for a location manually.');
+      return;
+    }
+
+    console.log('[TRACE START] Calling onTrace with location:', {
+      lat: location.lat,
+      lon: location.lon,
+      displayName: location.displayName,
+      source: location.source,
+    });
+
+    onTrace({
+      imageBase64: selectedImage,
+      mimeType: selectedMimeType,
+      filenameHint: isEnhanced ? `enhanced_${filenameHint}` : filenameHint,
+      location,
+    });
   };
 
   return (
@@ -270,6 +441,123 @@ export const GadgetUploader: React.FC<GadgetUploaderProps> = ({ onTrace, isTraci
               <Sliders className="w-3.5 h-3.5 text-amber-400" />
               <span>{isEnhanced ? 'Adjust Filters (Active)' : 'Filter & Enhance Photo (Brightness, Contrast, Sharpness)'}</span>
             </button>
+          </div>
+        )}
+
+        {/* Location Selection Section - Appears when image is selected */}
+        {selectedImage && (
+          <div className="mt-6 rounded-xl bg-slate-950/60 border border-slate-800 p-5">
+            <div className="flex flex-col gap-4">
+              {/* Error message if GPS failed */}
+              {locationError && (
+                <div className="flex items-start gap-2 p-3 rounded-lg bg-red-500/10 border border-red-500/30">
+                  <AlertCircle className="w-4 h-4 text-red-400 flex-shrink-0 mt-0.5" />
+                  <p className="text-xs text-red-300">{locationError}</p>
+                </div>
+              )}
+
+              {/* Current Location Display */}
+              {location ? (
+                <div className="flex items-center space-x-3 p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/30">
+                  <div className="w-8 h-8 rounded-lg bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center text-emerald-400 flex-shrink-0">
+                    <MapPin className="w-4 h-4" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center space-x-2">
+                      <span className="text-[10px] uppercase font-mono tracking-wider text-emerald-400">
+                        Location Set
+                      </span>
+                      <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
+                        {location.source === 'browser_gps' ? 'GPS' : 'Manual / Geocoded'}
+                      </span>
+                    </div>
+                    <p className="font-heading font-semibold text-white text-sm truncate">
+                      {location.displayName}
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => setLocation(null)}
+                    className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white transition"
+                    title="Clear location"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              ) : (
+                <>
+                  {/* GPS Button */}
+                  <div className="flex items-center justify-center gap-4">
+                    <div className="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400">
+                      <MapPin className="w-5 h-5" />
+                    </div>
+                    <div className="flex-1">
+                      <p className="font-heading font-semibold text-white text-sm">
+                        Location Required
+                      </p>
+                      <p className="text-xs text-slate-400">
+                        Enable GPS or search manually to find nearby places.
+                      </p>
+                    </div>
+                    <button
+                      onClick={handleGetCurrentLocation}
+                      disabled={isGeocoding}
+                      className="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-semibold flex items-center space-x-2"
+                    >
+                      {isGeocoding ? (
+                        <>
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                          <span>Detecting...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Navigation className="w-3.5 h-3.5" />
+                          <span>Locate Me</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+
+                  {/* Manual Search */}
+                  <div className="relative">
+                    <form onSubmit={handleSearchLocation} className="relative">
+                      <input
+                        type="text"
+                        value={locationQuery}
+                        onChange={(e) => setLocationQuery(e.target.value)}
+                        placeholder="Or search: city, district, or landmark..."
+                        className="w-full pl-9 pr-24 py-2.5 rounded-xl bg-slate-950 border border-slate-700 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-amber-400 font-sans"
+                      />
+                      <Search className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
+                      <div className="absolute right-1.5 top-1.5 flex items-center space-x-1">
+                        <button
+                          type="submit"
+                          disabled={isGeocoding}
+                          className="px-2.5 py-1.5 rounded-lg bg-slate-700 hover:bg-slate-600 text-white text-xs font-semibold"
+                        >
+                          Search
+                        </button>
+                      </div>
+                    </form>
+
+                    {/* Autocomplete Suggestions */}
+                    {showLocationSuggestions && locationSuggestions.length > 0 && (
+                      <div className="absolute left-0 right-0 top-12 z-50 rounded-xl bg-slate-900 border border-slate-700 shadow-2xl p-2 max-h-56 overflow-y-auto">
+                        {locationSuggestions.map((item, i) => (
+                          <button
+                            key={i}
+                            onClick={() => selectLocationSuggestion(item)}
+                            className="w-full text-left p-2 rounded-lg hover:bg-slate-800 text-xs text-slate-200 transition flex items-center space-x-2 truncate"
+                          >
+                            <MapPin className="w-3.5 h-3.5 text-amber-400 flex-shrink-0" />
+                            <span className="truncate">{item.display_name}</span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </>
+              )}
+            </div>
           </div>
         )}
 

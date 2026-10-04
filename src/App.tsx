@@ -232,11 +232,18 @@ export default function App() {
     imageBase64?: string;
     mimeType?: string;
     filenameHint?: string;
+    location?: SearchLocation;
   }) => {
+    // If location is provided from GadgetUploader, set it
+    if (data.location) {
+      setLocation(data.location);
+    }
+
     executeTrace({
       imageBase64: data.imageBase64,
       mimeType: data.mimeType,
       filenameHint: data.filenameHint,
+      targetLocation: data.location,
     });
   };
 
