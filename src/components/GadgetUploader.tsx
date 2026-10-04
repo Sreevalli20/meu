@@ -1,16 +1,13 @@
 import React, { useState, useRef } from 'react';
 import { UploadCloud, Camera, Sparkles, RefreshCw, X, CheckCircle2, Sliders, Wand2 } from 'lucide-react';
-import { SampleFoodPreset, ImageAdjustment } from '../types/trace';
+import { ImageAdjustment } from '../types/trace';
 import { ImageAdjustmentStudio } from './ImageAdjustmentStudio';
-
-export const SAMPLE_PRESETS: SampleFoodPreset[] = [];
 
 interface GadgetUploaderProps {
   onTrace: (payload: {
     imageBase64?: string;
     mimeType?: string;
     filenameHint?: string;
-    preset?: SampleFoodPreset;
   }) => void;
   isTracing: boolean;
 }

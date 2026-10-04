@@ -37,12 +37,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Mount static files for production (serves the React build)
-static_dir = Path(__file__).parent.parent / "dist"
-if static_dir.exists():
-    app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
-    app.mount("/", StaticFiles(directory=str(static_dir), html=True), name="frontend")
-
 GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
 GROQ_VISION_MODEL = os.getenv("GROQ_VISION_MODEL", "llava-v1.5-7b")
 
@@ -75,6 +69,7 @@ class TraceRequest(BaseModel):
     imageBase64: Optional[str] = None
     mimeType: Optional[str] = "image/jpeg"
     filenameHint: Optional[str] = None
+    userCorrectedDish: Optional[str] = None
     lat: float
     lon: float
     radiusKm: Optional[float] = 5.0
@@ -360,6 +355,10 @@ async def search_places(req: PlacesSearchRequest):
 async def trace(req: TraceRequest):
     try:
         food_data = await run_food_vision_agent(req.imageBase64 or "", req.mimeType or "image/jpeg", req.filenameHint)
+        # Apply user correction if provided
+        if req.userCorrectedDish:
+            food_data["dish_name"] = req.userCorrectedDish
+            food_data["recommended_search_queries"] = [req.userCorrectedDish]
         candidates = await build_candidate_places(food_data, req.lat, req.lon, req.radiusKm or 5.0)
 
         steps = [
@@ -476,6 +475,13 @@ async def remove_saved_place(save_id: str):
     global SAVED_PLACES_DB
     SAVED_PLACES_DB = [s for s in SAVED_PLACES_DB if s["id"] != save_id]
     return {"success": True, "removedId": save_id}
+
+# Mount static files for production (serves the React build)
+# IMPORTANT: Must be AFTER all API routes to avoid catching API requests
+static_dir = Path(__file__).parent.parent / "dist"
+if static_dir.exists():
+    app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
+    app.mount("/", StaticFiles(directory=str(static_dir), html=True), name="frontend")
 
 if __name__ == "__main__":
     import uvicorn

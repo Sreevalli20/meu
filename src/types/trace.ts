@@ -90,19 +90,6 @@ export interface TraceResponse {
   dataSource: string;
 }
 
-export interface SampleFoodPreset {
-  id: string;
-  name: string;
-  tagline: string;
-  cuisine: string;
-  thumbnail: string;
-  defaultLocation: {
-    lat: number;
-    lon: number;
-    displayName: string;
-  };
-}
-
 export interface UserProfile {
   id: string;
   name: string;
