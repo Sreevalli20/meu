@@ -70,8 +70,8 @@ class TraceRequest(BaseModel):
     mimeType: Optional[str] = "image/jpeg"
     filenameHint: Optional[str] = None
     userCorrectedDish: Optional[str] = None
-    lat: float
-    lon: float
+    lat: float = Field(..., ge=-90, le=90, description="Latitude must be between -90 and 90")
+    lon: float = Field(..., ge=-180, le=180, description="Longitude must be between -180 and 180")
     radiusKm: Optional[float] = 5.0
     locationName: Optional[str] = "Current Location"
     locationSource: Optional[str] = "gps"
@@ -354,12 +354,30 @@ async def search_places(req: PlacesSearchRequest):
 @app.post("/api/trace")
 async def trace(req: TraceRequest):
     try:
+        # Validate coordinates explicitly
+        if not (-90 <= req.lat <= 90):
+            logger.error(f"[COORDINATE VALIDATION] Invalid latitude: {req.lat}")
+            raise HTTPException(
+                status_code=400,
+                detail=f"Invalid latitude: {req.lat}. Must be between -90 and 90."
+            )
+        if not (-180 <= req.lon <= 180):
+            logger.error(f"[COORDINATE VALIDATION] Invalid longitude: {req.lon}")
+            raise HTTPException(
+                status_code=400,
+                detail=f"Invalid longitude: {req.lon}. Must be between -180 and 180."
+            )
+
+        logger.info(f"[TRACE] Starting with coordinates: lat={req.lat}, lon={req.lon}, source={req.locationSource}")
+
         food_data = await run_food_vision_agent(req.imageBase64 or "", req.mimeType or "image/jpeg", req.filenameHint)
         # Apply user correction if provided
         if req.userCorrectedDish:
             food_data["dish_name"] = req.userCorrectedDish
             food_data["recommended_search_queries"] = [req.userCorrectedDish]
         candidates = await build_candidate_places(food_data, req.lat, req.lon, req.radiusKm or 5.0)
+
+        logger.info(f"[TRACE] Found {len(candidates)} candidates for {req.locationName}")
 
         steps = [
             {"id": "vision", "agent": "Vision Agent", "title": "Visual Texture & Dish Identification", "status": "completed", "outputSummary": f"{food_data.get('dish_name')} detected ({int(food_data.get('confidence', 0.9)*100)}% confidence)."},
@@ -480,7 +498,7 @@ async def remove_saved_place(save_id: str):
 # IMPORTANT: Must be AFTER all API routes to avoid catching API requests
 static_dir = Path(__file__).parent.parent / "dist"
 if static_dir.exists():
-    app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
+    app.mount("/assets", StaticFiles(directory=str(static_dir / "assets")), name="assets")
     app.mount("/", StaticFiles(directory=str(static_dir), html=True), name="frontend")
 
 if __name__ == "__main__":

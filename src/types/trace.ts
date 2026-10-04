@@ -62,11 +62,23 @@ export interface VerifiedCandidate {
   review_count?: number;
 }
 
+export type LocationSource = 'browser_gps' | 'manual_search';
+
+export type LocationState =
+  | 'idle'
+  | 'requesting_gps'
+  | 'gps_success'
+  | 'permission_denied'
+  | 'gps_unavailable'
+  | 'manual_search'
+  | 'manual_success'
+  | 'error';
+
 export interface SearchLocation {
   lat: number;
   lon: number;
   displayName: string;
-  source: 'browser_gps' | 'manual_search' | 'default_area';
+  source: LocationSource;
 }
 
 export interface AgentStep {
@@ -95,7 +107,7 @@ export interface UserProfile {
   name: string;
   email: string;
   avatarUrl?: string;
-  provider: 'google' | 'email' | 'guest';
+  provider: 'email' | 'guest';
   dietaryPreferences: string[];
   favoriteRadiusKm: number;
   createdAt: string;

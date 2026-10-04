@@ -113,9 +113,17 @@ export default function App() {
   }) => {
     const activeLoc = payload.targetLocation || location;
     if (!activeLoc) {
+      console.error('[LOCATION CHECK] No location available for trace');
       alert('Location is required. Please enable GPS or manually select a location.');
       return;
     }
+
+    console.log('[TRACE START] Location:', {
+      lat: activeLoc.lat,
+      lon: activeLoc.lon,
+      displayName: activeLoc.displayName,
+      source: activeLoc.source,
+    });
 
     setIsTracing(true);
     setLastPayload({
@@ -172,6 +180,14 @@ export default function App() {
     setAgentSteps(initialSteps);
 
     try {
+      console.log('[API CALL] Sending to backend:', {
+        lat: activeLoc.lat,
+        lon: activeLoc.lon,
+        radiusKm: activeRad,
+        locationName: activeLoc.displayName,
+        locationSource: activeLoc.source,
+      });
+
       const response = await traceFoodPipeline({
         imageBase64: payload.imageBase64,
         mimeType: payload.mimeType,
@@ -182,6 +198,11 @@ export default function App() {
         radiusKm: activeRad,
         locationName: activeLoc.displayName,
         locationSource: activeLoc.source,
+      });
+
+      console.log('[API RESPONSE] Success:', {
+        candidates: response.candidates.length,
+        food: response.food.dish_name,
       });
 
       if (response.success) {
@@ -306,10 +327,15 @@ export default function App() {
     setCandidates(
       candidates.map((c) => {
         if (c.name.toLowerCase() === payload.candidateName.toLowerCase()) {
+          const existingRating = c.community_rating;
+          const existingCount = c.review_count || 0;
+          const newRating = existingRating
+            ? Math.round(((existingRating * existingCount + payload.rating) / (existingCount + 1)) * 10) / 10
+            : payload.rating; // First review = no fake default
           return {
             ...c,
-            review_count: (c.review_count || 0) + 1,
-            community_rating: Math.round(((c.community_rating || 4.5) * 4 + payload.rating) / 5 * 10) / 10,
+            review_count: existingCount + 1,
+            community_rating: newRating,
           };
         }
         return c;
@@ -322,7 +348,7 @@ export default function App() {
   const handleLogin = async (payload: {
     email: string;
     name?: string;
-    provider?: 'google' | 'email';
+    provider?: 'email';
     dietaryPreferences?: string[];
     favoriteRadiusKm?: number;
   }) => {
