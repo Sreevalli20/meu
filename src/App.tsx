@@ -511,13 +511,15 @@ export default function App() {
 
                 {/* Content based on View Mode */}
                 {discoverViewMode === 'food_radar' ? (
-                  <FoodRadar
-                    location={location}
-                    radiusKm={radiusKm}
-                    candidates={candidates}
-                    dishName={food.dish_name}
-                    onSelectCandidate={(cand) => setActiveEvidenceCandidate(cand)}
-                  />
+                  location ? (
+                    <FoodRadar
+                      location={location}
+                      radiusKm={radiusKm}
+                      candidates={candidates}
+                      dishName={food.dish_name}
+                      onSelectCandidate={(cand) => setActiveEvidenceCandidate(cand)}
+                    />
+                  ) : null
                 ) : candidates.length > 0 ? (
                   <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
                     {/* Left Column: Ranked Candidates List */}
@@ -548,13 +550,15 @@ export default function App() {
                         </span>
                       </div>
 
-                      <MapViewer
-                        location={location}
-                        radiusKm={radiusKm}
-                        candidates={filteredCandidates}
-                        selectedCandidate={selectedCandidate}
-                        onSelectCandidate={(cand) => setSelectedCandidate(cand)}
-                      />
+                      {location && (
+                        <MapViewer
+                          location={location}
+                          radiusKm={radiusKm}
+                          candidates={filteredCandidates}
+                          selectedCandidate={selectedCandidate}
+                          onSelectCandidate={(cand) => setSelectedCandidate(cand)}
+                        />
+                      )}
 
                       <div className="p-4 rounded-xl bg-slate-900/90 border border-slate-800 text-xs font-mono text-slate-300 space-y-1.5">
                         <div className="flex items-center space-x-2 text-emerald-400 font-bold">
@@ -567,7 +571,7 @@ export default function App() {
                       </div>
                     </div>
                   </div>
-                ) : (
+                ) : location ? (
                   <EmptyState
                     dishName={food.dish_name}
                     locationName={location.displayName}
@@ -575,7 +579,7 @@ export default function App() {
                     onExpandRadius={() => handleRadiusChange(15)}
                     onReset={() => setActiveTab('home')}
                   />
-                )}
+                ) : null}
               </>
             ) : (
               <div className="p-12 rounded-2xl bg-slate-900/60 border border-slate-800 text-center space-y-4 max-w-lg mx-auto">
