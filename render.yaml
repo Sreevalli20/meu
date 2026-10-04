@@ -8,9 +8,12 @@ services:
       pip install -r backend/requirements.txt
       npm install
       npm run build
-    startCommand: cd backend && uvicorn main:app --host 0.0.0.0 --port $PORT
+    startCommand: uvicorn backend.main:app --host 0.0.0.0 --port $PORT
     envVars:
       - key: PYTHON_VERSION
         value: "3.14.6"
       - key: GROQ_API_KEY
+        sync: false
+      - key: GROQ_VISION_MODEL
+        value: "qwen/qwen3.8-27b"
         sync: false

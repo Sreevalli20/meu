@@ -129,8 +129,8 @@ Create a `.env` file (not committed to git):
 # Get your key at: https://console.groq.com/keys
 GROQ_API_KEY="your_groq_api_key_here"
 
-# Optional: Configure specific Groq vision model (defaults to llava-v1.5-7b)
-# GROQ_VISION_MODEL="llava-v1.5-7b"
+# Optional: Configure specific Groq vision model (defaults to qwen/qwen3.8-27b)
+# GROQ_VISION_MODEL="qwen/qwen3.8-27b"
 ```
 
 ## Local Development (For Maintainers Only)

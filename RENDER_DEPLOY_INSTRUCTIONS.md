@@ -1,9 +1,12 @@
 # Render Deployment Instructions
 
 ## Current Status
-- Code pushed to GitHub: ✓ (commit ff8641a)
+- Code pushed to GitHub: ✓ (commit 9e1823a - location workflow fix)
 - Production URL: https://meu-6ckl.onrender.com
-- Production health check: 404 (deployment not yet triggered)
+- Production health check: 200 OK
+- Latest code deployed: NEEDS MANUAL REDPLOY
+- Current build: index-BzxsGVmq.js (old)
+- New build: index-zyOnIG3L.js (with GPS fixes)
 
 ## Why Production Still Shows 404
 Render has not yet detected the new code changes. You need to trigger a manual redeploy.
@@ -41,7 +44,7 @@ Go to: https://dashboard.render.com → panipath-backend → Environment
   - Get from: https://console.groq.com/keys
 
 **Optional:**
-- `GROQ_VISION_MODEL` = llava-v1.5-7b (default)
+- `GROQ_VISION_MODEL` = qwen/qwen3.8-27b (default)
 
 ## After Deployment - Verification Checklist
 

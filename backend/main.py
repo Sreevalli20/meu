@@ -38,7 +38,7 @@ app.add_middleware(
 )
 
 GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
-GROQ_VISION_MODEL = os.getenv("GROQ_VISION_MODEL", "llava-v1.5-7b")
+GROQ_VISION_MODEL = os.getenv("GROQ_VISION_MODEL", "qwen/qwen3.8-27b")
 
 # ----------------- PYDANTIC SCHEMAS -----------------
 
@@ -500,6 +500,13 @@ static_dir = Path(__file__).parent.parent / "dist"
 if static_dir.exists():
     app.mount("/assets", StaticFiles(directory=str(static_dir / "assets")), name="assets")
     app.mount("/", StaticFiles(directory=str(static_dir), html=True), name="frontend")
+
+# SPA fallback - catch all unmatched routes and serve index.html
+@app.exception_handler(404)
+async def custom_404_handler(request, exc):
+    if static_dir.exists():
+        return FileResponse(static_dir / "index.html")
+    raise HTTPException(status_code=404, detail="Not found")
 
 if __name__ == "__main__":
     import uvicorn

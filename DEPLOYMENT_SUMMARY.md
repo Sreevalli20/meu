@@ -74,12 +74,12 @@
 ## Render Environment Variables Required
 
 ### Mandatory
-- `GROQ_API_KEY` - Required for Groq AI vision model (llava-v1.5-7b)
+- `GROQ_API_KEY` - Required for Groq AI vision model (qwen/qwen3.8-27b)
   - Get from: https://console.groq.com/keys
   - Sync: false (manual entry in Render dashboard)
 
 ### Optional
-- `GROQ_VISION_MODEL` - Override default vision model (defaults to llava-v1.5-7b)
+- `GROQ_VISION_MODEL` - Override default vision model (defaults to qwen/qwen3.8-27b)
 - `PORT` - Automatically set by Render (don't set manually)
 
 ---

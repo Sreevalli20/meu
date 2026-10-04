@@ -777,7 +777,7 @@ export default function App() {
             </div>
             <div className="space-y-2 text-slate-300">
               <p>• <b>Runtime:</b> Python FastAPI (Render)</p>
-              <p>• <b>Multimodal Model:</b> Groq Vision (llava-v1.5-7b)</p>
+              <p>• <b>Multimodal Model:</b> Groq Vision (qwen/qwen3.8-27b)</p>
               <p>• <b>Geospatial API:</b> OpenStreetMap Overpass & Nominatim (Live Registry)</p>
               <p>• <b>Evidence Matrix:</b> 5-Point Explainable Scoring (Registry: 20, GPS: 20, Dish: 25, Menu: 20, Proximity: 15)</p>
               <p>• <b>Community Layer:</b> In-Person Verified Reviews and Ratings with price verification.</p>
