@@ -1,0 +1,8 @@
+{
+  "name": "PANI-PATH",
+  "description": "From a food photo to a real place. Trace dishes to real businesses, menus, and locations with verifiable evidence chains.",
+  "requestFramePermissions": [
+    "geolocation"
+  ],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GROQ_API"]
+}
